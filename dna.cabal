@@ -1,0 +1,66 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.33.0.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: b75e711aff44c1817cdbc8666f5bd37c0cf3174bb40da77ce9fd65dcd3a4140e
+
+name:           dna
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/githubuser/dna#readme>
+homepage:       https://github.com/githubuser/dna#readme
+bug-reports:    https://github.com/githubuser/dna/issues
+author:         Author name here
+maintainer:     example@example.com
+copyright:      2021 Author name here
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/githubuser/dna
+
+library
+  exposed-modules:
+      DataTypes
+      HelperFunctions
+      Lib
+  other-modules:
+      Paths_dna
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.7 && <5, mtl >= 2.2
+  default-language: Haskell2010
+
+executable dna-exe
+  main-is: Main.hs
+  other-modules:
+    Paths_dna
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.7 && <5, mtl >= 2.2
+    , dna
+  default-language: Haskell2010
+
+test-suite dna-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+    Paths_dna, CodonSpec, GeneSpec, GenesSpec
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+    base >=4.7 && <5, mtl >= 2.2
+    , hspec >= 2.7
+    , hspec-discover >= 2.7
+    , dna
+  default-language: Haskell2010
