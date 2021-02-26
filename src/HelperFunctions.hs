@@ -7,10 +7,6 @@ isGeneFinished :: Gene -> Bool
 isGeneFinished (FinishedGene _ _) = True
 isGeneFinished (UnfinishedGene _) = False
 
--- finishGene :: Gene -> String -> Gene
--- finishGene (UnfinishedGene lss) css = FinishedGene lss (Codon css)
--- finishGene gene@(FinishedGene _ _) css = gene
-
 addCodonToGene :: Gene -> Codon -> Gene 
 addCodonToGene gene@(UnfinishedGene cs) codon
     | isStopCodon codon = FinishedGene cs codon
