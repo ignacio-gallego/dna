@@ -36,6 +36,12 @@ stack run
 In order to run the tests, located [here](https://github.com/ignacio-gallego/dna/blob/main/test/Spec.hs), you can run the following command, with the cabal tool installed:
 
 ```
+stack test
+```
+
+or if that does not work:
+
+```
 cabal new-test all
 ```
 

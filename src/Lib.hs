@@ -1,7 +1,7 @@
 module Lib where
 
 import Data.Either
-import Data.Char
+-- import Data.Char
 import DataTypes
 import HelperFunctions
 
@@ -10,55 +10,63 @@ processFile fileName = do
     content <- readFile fileName
     putStrLn ("Executing DNA sequencing on file " ++ fileName ++ "...")
     putStrLn ("Reading content: " ++ content)
-    putStrLn "Result:\n"
-    putStrLn (show(parseGenes(content)))
+    putStrLn "....\n"
+    handleErrors content
 
 -- This is the main function
-parseGenes :: String -> GenesParseResult
-parseGenes "" = Right InvalidLength
-parseGenes input = parseGenes2 [] input
+handleErrors :: String -> IO ()
+handleErrors input = case parseGenes input of
+                        GenesError error input2 -> putStrLn (showError error input2)
+                        GenesResult genes _ _   -> do   -- print results (one gene in a new line)
+                                                        putStrLn "Parsing success:\n"
+                                                        putStrLn "\n"
+                                                        putStrLn (unlines (map show genes))
 
-parseGenes2 :: Genes -> String -> GenesParseResult
-parseGenes2 genes "" = Left genes -- base case, return the list
-parseGenes2 genes input = 
-    let (geneRes, input2) = parseGene input in
-        case geneRes of
-            Right error -> -- propagate error
-                Right error
-            Left gene -> -- add gene and continue to parse the rest of the input
-                parseGenes2 (genes ++ [gene]) input2
+parseGenes :: Input -> GenesParseResult
+parseGenes "" = GenesError (InvalidLength 1) "(empty input)"
+parseGenes input = parseGenes2 input (1,0) ([]::Genes) -- initialize algorithm
 
-parseGene :: String -> (GeneParseResult, String)
-parseGene "" = (Right InvalidLength , "")
-parseGene str = parseGene2 (UnfinishedGene []) str
+parseGenes2 :: Input -> Position -> Genes -> GenesParseResult
+parseGenes2 "" pos genes = GenesResult genes "" pos -- base case, return the list
+parseGenes2 input pos genes = 
+        case parseGene input pos of
+            GeneError error input2 -> -- propagate error
+                GenesError error input2
+            GeneResult gene input2 pos2 -> -- add gene and continue to parse the rest of the input
+                parseGenes2 input2 pos2 (genes ++ [gene]) 
 
-parseGene2 :: Gene -> String -> (GeneParseResult, String)
-parseGene2 gene ""
-    | isGeneFinished gene = (Left gene, "")
-    | otherwise = (Right UnexpectedGeneEnd, "")
+parseGene :: Input -> Position -> GeneParseResult
+parseGene "" pos = GeneError (InvalidLength (getLineOfPos pos)) ""
+parseGene input pos = parseGene2 input pos (UnfinishedGene [])
 
-parseGene2 gene input
-    | isGeneFinished gene = (Left gene, discardEndCodons input) -- return the complete gene
+parseGene2 :: Input -> Position -> Gene -> GeneParseResult
+parseGene2 "" pos gene
+    | isGeneFinished gene = GeneResult gene "" pos -- return the final gene
+    | otherwise = GeneError (UnexpectedGeneEnd (getLineOfPos pos)) ""
+
+parseGene2 input pos gene
+    | isGeneFinished gene = let (input2, pos2) = discardEndCodons input pos in
+                                GeneResult gene input2 pos2 -- return the complete gene with new position
     | otherwise =
-     let (codonRes, input2) = parseCodon input in
-        case codonRes of
-            Right error -> --propagate error
-                (Right error, input2)
-            Left codon -> -- call recursively
-                parseGene2 (addCodonToGene gene codon) input2
+        case parseCodon input pos of
+            CodonError error input2 -> --propagate error
+                GeneError error input2
+            CodonResult codon input2 pos2-> -- call recursively
+                parseGene2 input2 pos2 (addCodonToGene codon gene)
 
-parseCodon :: String -> (CodonParseResult, String)
-parseCodon [] = (Right InvalidLength, "")
-parseCodon str = parseCodon2 (Codon "") str
+parseCodon :: Input -> Position -> CodonParseResult
+parseCodon "" pos  = CodonError (InvalidLength (getLineOfPos pos)) ""
+parseCodon input pos = parseCodon2 input pos (Codon "")
 
-parseCodon2 :: Codon -> String -> (CodonParseResult, String)
-parseCodon2 codon ""
-    | isCodonFinished codon = (Left codon, "")
-    | otherwise = (Right InvalidLength, "")
+parseCodon2 :: Input -> Position -> Codon ->  CodonParseResult
+parseCodon2 "" pos codon
+    | isCodonFinished codon = CodonResult codon "" pos
+    | otherwise = CodonError (InvalidLength (getLineOfPos pos)) ""
 
-parseCodon2 codon@(Codon letts) str@(x:xs)
-    | isCodonFinished codon = (Left codon, str)
-    | isCommentLine str = parseCodon2 codon (discardLine str)
-    | isSpace x = parseCodon2 codon xs
-    | isValidCodonLetter x = parseCodon2 (Codon (letts++[x])) xs
-    | otherwise = (Right InvalidChars, str)
+parseCodon2 input@(x:xs) pos codon@(Codon letts)
+    | isCodonFinished codon = CodonResult codon input pos
+    | isCommentLine input = parseCodon2 (discardLine input) (sumOneLine pos) codon
+    | isReturn x = parseCodon2 xs (sumOneLine pos) codon
+    | isSpace x = parseCodon2 xs (sumOneCol pos) codon
+    | isValidCodonLetter x = parseCodon2 xs (sumOneCol pos) (Codon (letts++[x]))
+    | otherwise = CodonError (InvalidChars (getLineOfPos pos) (1 + getColOfPos pos)) (take 20 input)
